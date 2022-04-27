@@ -40,6 +40,8 @@ const defaultConfig = {
   lower_case_table_names  : 2
 }
 
+let alreadyRunning = false
+
 /*
 Returns the child thread running mysqld.
 I'm calling the return value "mysqld":
@@ -49,6 +51,11 @@ mysqld.ready resolves when the server is fully loaded.
 mysqld.ready rejects when the port is blocked unless allowBlockedPort=true.
 */
 module.exports = function() {
+  if (alreadyRunning) {
+    console.log('A previous instance of mysql-server is still running.')
+    return
+  }
+
   const {
     allowBlockedPort,
     mycnf,
@@ -81,9 +88,12 @@ module.exports = function() {
   const initialized = fs.existsSync(path.resolve(__dirname, 'server/data/mysql/mysql'))
 
   // Did not work spawning mysqld directly from node, therefore shell script
-  console.log(!initialized || reinitialize ? 'server/reinitialize.sh' : 'server/start.sh')
+  alreadyRunning = true
   const mysqld = spawn('bash', [path.join(__dirname,
-    !initialized || reinitialize ? 'server/reinitialize.sh' : 'server/start.sh')]);
+    !initialized || reinitialize ? 'server/reinitialize.sh' : 'server/start.sh')], {detached: true});
+  mysqld.on('exit', function (code) {
+    alreadyRunning = false
+  })
 
   if (verbose) {
     mysqld.stdout.pipe(process.stdout)
@@ -93,6 +103,11 @@ module.exports = function() {
   let doNotShutdown = false
 
   mysqld.stop = function() {
+    if (!alreadyRunning) {
+      console.log('MySQL server is not running. Already stopped.')
+      return
+    }
+
     const connection = mysql.createConnection({
       host     : 'localhost',
       user     : 'root',
@@ -124,12 +139,13 @@ module.exports = function() {
       console.log('stderr', data.toString())
       const ready =
         !!data.toString().match(/MySQL Community Server/);
-      const blockedPort = !!data.toString().match(/Do you already have another mysqld server running on port:/)
+      const blockedPort = !!data.toString().match(/Do you already have another mysqld server running on port:/) || !!data.toString().match(/Unable to lock/)
       const badPreviousShutdown = !!data.toString().match(/Check that you do not already have another mysqld process using the same InnoDB data or log files./) || !!data.toString().match(/must be writable/)
 
       if (!promiseDone && badPreviousShutdown) {
         promiseDone = true
         doNotShutdown = true
+        process.kill(-mysqld.pid)
         console.log('A previous instance of mysql-server is still running. The current mysql-server is reusing this instance.')
         return resolve()
       }
@@ -137,13 +153,34 @@ module.exports = function() {
       if (!promiseDone && ready) {
         promiseDone = true
         console.log(`mysql-server running on port ${port}.`)
-        return resolve()
+
+        // https://stackoverflow.com/a/56509065:
+        const connection = mysql.createConnection({
+          host     : 'localhost',
+          user     : 'root',
+          password : '',
+          port: configrc.port
+        });
+        connection.on('error', err => {
+          // eat error
+        })
+        connection.query(`ALTER USER 'root'@'localhost' IDENTIFIED WITH mysql_native_password BY '';`, (err, results, fields) => {
+          if (err) {
+            console.log('err', err)
+          }
+          console.log('Do not use this in production: Downgraded "MySQL" to authenticate using "mysql_native_password".')
+          return resolve()
+        })
+
+        return
+        // return resolve()
       }
       if (!promiseDone && blockedPort) {
         promiseDone = true
         if (allowBlockedPort) {
           doNotShutdown = true
           console.log(`mysql-server is not running. Port ${port} is in use by a different program. But allowBlockedPort=true. This external instance is being used.`)
+          process.kill(-mysqld.pid)
           return resolve()
         } else {
           return reject(new Error(`Port ${fullConfig.port} is blocked. New MySQL server not started.`))
