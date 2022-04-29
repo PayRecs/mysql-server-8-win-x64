@@ -186,6 +186,7 @@ const startServer = function() {
 }
 
 function kill(pid) {
+  console.log('pid', pid)
   killPort(3306, 'tcp').then(console.log).catch(console.log)
 }
 
