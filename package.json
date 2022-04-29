@@ -11,14 +11,14 @@
     "binary",
     "log"
   ],
-  "repository": "https://github.com/taylorgoolsby/mysql-server-5.7-win-x64",
+  "repository": "https://github.com/taylorgoolsby/mysql-server-8-win-x64",
   "scripts": {
     "test": "yarn kill-port 3306 && jest",
-    "mysql-server": "mysql-server-5.7-win-x64"
+    "mysql-server": "mysql-server-8-win-x64"
   },
   "main": "index.js",
   "bin": {
-    "mysql-server-5.7-win-x64": "run.js"
+    "mysql-server-8-win-x64": "run.js"
   },
   "dependencies": {
     "cosmiconfig": "^5.0.6",
