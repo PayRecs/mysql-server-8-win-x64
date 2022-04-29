@@ -3,7 +3,7 @@ const path = require('path');
 const spawn = require('child_process').spawn;
 const mysql = require('mysql2')
 const cosmiconfig = require('cosmiconfig')
-const killPort = require('kill-port')
+const taskkill = require('taskkill')
 
 const explorer = cosmiconfig("mysql-server")
 const rcResults = (explorer.searchSync() || {}).config || {}
@@ -42,6 +42,7 @@ const defaultConfig = {
 }
 
 let alreadyRunning = false
+let pid
 
 /*
 Returns the child thread running mysqld.
@@ -135,6 +136,8 @@ const startServer = function() {
       const blockedPort = !!data.toString().match(/Do you already have another mysqld server running on port:/) || !!data.toString().match(/Unable to lock/)
       const badPreviousShutdown = !!data.toString().match(/Check that you do not already have another mysqld process using the same InnoDB data or log files./) || !!data.toString().match(/must be writable/)
 
+      pid = pid || data.toString().match(/starting as process (\d+)/)?.[1]
+
       if (!promiseDone && badPreviousShutdown) {
         promiseDone = true
         doNotShutdown = true
@@ -185,9 +188,13 @@ const startServer = function() {
   return mysqld
 }
 
-function kill(pid) {
-  console.log('pid', pid)
-  killPort(3306, 'tcp').then(console.log).catch(console.log)
+function kill() {
+  console.log('killing pid', pid)
+  if (!pid) {
+    return
+  }
+  // killPort(3306, 'tcp').then(console.log).catch(console.log)
+  taskkill(pid, {force: true})
 }
 
 module.exports = startServer
