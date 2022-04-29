@@ -10,12 +10,5 @@ test('serverStartsAndStops', async () => {
 
   await mysqld.ready
   console.log('mysql.ready')
-  mysqld.stop();
-
-  return new Promise(resolve => {
-    mysqld.on('exit', function (code) {
-      expect(code).toBe(0)
-      resolve()
-    });
-  })
+  await mysqld.stop();
 })

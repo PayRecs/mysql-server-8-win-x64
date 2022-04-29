@@ -22,10 +22,10 @@
   },
   "dependencies": {
     "cosmiconfig": "^5.0.6",
-    "mysql2": "^2.3.3"
+    "mysql2": "^2.3.3",
+    "kill-port": "taylorgoolsby/kill-port"
   },
   "devDependencies": {
-    "jest": "^24.0.0",
-    "kill-port": "taylorgoolsby/kill-port"
+    "jest": "^24.0.0"
   }
 }

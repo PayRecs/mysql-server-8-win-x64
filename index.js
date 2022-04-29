@@ -3,6 +3,7 @@ const path = require('path');
 const spawn = require('child_process').spawn;
 const mysql = require('mysql2')
 const cosmiconfig = require('cosmiconfig')
+const killPort = require('kill-port')
 
 const explorer = cosmiconfig("mysql-server")
 const rcResults = (explorer.searchSync() || {}).config || {}
@@ -93,7 +94,7 @@ const startServer = function() {
   // Did not work spawning mysqld directly from node, therefore shell script
   alreadyRunning = true
   const mysqld = spawn('bash', [path.join(__dirname,
-    !initialized || reinitialize ? 'server/reinitialize.sh' : 'server/start.sh')], {detached: true, shell: true});
+    !initialized || reinitialize ? 'server/reinitialize.sh' : 'server/start.sh')], {detached: false});
   mysqld.on('close', function (code) {
     alreadyRunning = false
   })
@@ -185,7 +186,7 @@ const startServer = function() {
 }
 
 function kill(pid) {
-  process.kill(-pid)
+  killPort(3306, 'tcp').then(console.log).catch(console.log)
 }
 
 module.exports = startServer
